@@ -7,7 +7,8 @@ Leia este arquivo inteiro antes de tocar no código; depois `README.md`; depois 
 
 | Arquivo | O que é |
 | --- | --- |
-| `reserva-funcional-respiratoria.html` | Página interativa, offline, ~790 KB. Build de `src/pulmao-live`. |
+| `reserva-funcional-respiratoria.html` | Página interativa, offline, ~800 KB. Build de `src/pulmao-live`. |
+| `LICENSE`, `THIRD_PARTY_NOTICES.md` | MIT © 2026 KDB Networks; avisos do teardown, do three.js (MIT) e das fontes (OFL). O build grava os dois no fim do HTML. |
 | `README.md` | Uso, teclas, como reconstruir. |
 | `src/pulmao-live/lung.js` | **O modelo.** Sem three.js. Um compartimento: `R·Q = Pmus + PEEP − Prs(V)`, `Prs = PL + Pcw`. CRF por bissecção de `Prs(V) = PEEP`. Cenários como parâmetros. Gases alveolares (balanço de massa, espaço morto 150 mL, reservatório de O₂ na Hb ~1 L, reservatório corporal de CO₂ ~40 L eq.). Capacidade de fechamento `CC = RV + 0,25 + 0,019·(idade−20) + CCadd`. Laplace e tensão com/sem surfactante. Controlador de esforço (`ampK`) que mantém o VT alvo. |
 | `src/pulmao-live/body.js` | Geometria procedural: coluna, esterno, 10 pares de costelas (TubeGeometry), 2 pulmões torneados, cúpula do diafragma, árvore brônquica recursiva (7 gerações), ácino ampliado em `x = 1,6 m`. `update(state)` posiciona tudo. Material do pulmão com `onBeforeCompile` para cinzar as bases fechadas por altura. |
@@ -26,11 +27,11 @@ npm install && npx playwright install chromium     # a parte do Chromium falhou 
 cp -r "<esta pasta>/src/pulmao-live" sims/pulmao-live
 node sims/build.mjs pulmao-live                     # → teardown-out/dist/pulmao-live.html
 ```
-Nesta máquina o clone está em `C:\kdbnetworks\teardown` (commit `a91262a`, instalado com `npm install --ignore-scripts`, sem o Chromium do Playwright). Ele tem `core.autocrlf false`: com a conversão do Windows ligada, o CSS do kit sai com CRLF e o HTML difere do original em 137 bytes. Com ela desligada, o fonte de 2026-11-08 reconstrói o HTML original byte a byte. Para iterar, na raiz do repositório:
+Na revisão, o clone ficava ao lado deste repositório, em `../teardown` (commit `a91262a`, instalado com `npm install --ignore-scripts`, sem o Chromium do Playwright). Ele tem `core.autocrlf false`: com a conversão do Windows ligada, o CSS do kit sai com CRLF e o HTML difere do original em 137 bytes. Com ela desligada, o fonte de 2026-11-08 reconstrói o HTML original byte a byte. Para iterar, na raiz do repositório:
 ```bash
-node crf/tools/build.mjs        # TEARDOWN=/outro/clone se não estiver em ../teardown
+node tools/build.mjs        # TEARDOWN=/outro/clone se não estiver em ../teardown
 ```
-A fonte da verdade é `crf/src/`. A cópia em `teardown/sims/` é apagada e refeita a cada build. O script também corrige `lang="en"` e `<title>pulmao-live</title>`, que o `build.mjs` do teardown escreve fixos.
+A fonte da verdade é `src/`. A cópia em `teardown/sims/` é apagada e refeita a cada build. O script também corrige `lang="en"` e `<title>pulmao-live</title>`, que o `build.mjs` do teardown escreve fixos, e grava `LICENSE` e `THIRD_PARTY_NOTICES.md` no fim do `<body>` (o esbuild tira os comentários de licença do three.js).
 
 O skill (`SKILL.md` do teardown) está em `~/.claude/skills/teardown` se instalado via `npx skills add elvarofficial/teardown -g -a claude-code`. As regras dele que mais importam: um input move tudo; números reais de uma fonte só; a peça que trabalha se abre; revisar por frames, nunca declarar pronto sem ler stills.
 
@@ -52,7 +53,7 @@ Verificado por stills: hero, frente, lado, árvore (vidro), diafragma, alvéolo 
 
 ### Revisão em GPU real (2026-11-08/09, Claude Code)
 
-Aberto no navegador do app (NVIDIA GeForce MX350, ANGLE D3D11) via `python -m http.server 8092`, entrada `crf` em `.claude/launch.json`. O tour inteiro roda: os 31 passos disparam na ordem, volta ao início aos 103 s, o clique assume e 25 s parados devolvem (reinicia em normal). Sem erros no console.
+Aberto no navegador do app (NVIDIA GeForce MX350, ANGLE D3D11) servido por `python -m http.server` (o navegador do app não abre `file://`). O tour inteiro roda: os 31 passos disparam na ordem, volta ao início aos 103 s, o clique assume e 25 s parados devolvem (reinicia em normal). Sem erros no console.
 
 Custo por quadro com a GPU sincronizada (`readPixels` no framebuffer padrão):
 
@@ -64,7 +65,7 @@ Custo por quadro com a GPU sincronizada (`readPixels` no framebuffer padrão):
 
 O fps em tempo real não foi medido: o painel do navegador do app ficou oculto e limitava a página a 1, 30 ou 60 fps. Para revisar com o painel oculto, troque `requestAnimationFrame` por `setTimeout(16)` na aba e tire uma captura para destravar o primeiro quadro.
 
-Corrigido em 2026-11-09 (ver §3): rótulo da pleura com PEEP, VT real e auto-PEEP depois de trocas e manobras, queda de SaO₂ na capacidade vital. O original está em `_lixeira/2026-11-08-crf-antes-das-correcoes/`.
+Corrigido em 2026-11-09 (ver §3): rótulo da pleura com PEEP, VT real e auto-PEEP depois de trocas e manobras, queda de SaO₂ na capacidade vital. O estado original é o primeiro commit deste repositório (`179b9ff`).
 
 O custo medido varia com o estado da máquina: em 2026-11-09 a mesma MX350, na tomada e na mesma resolução, deu tier 1 em 19 ms e tier 2 em 15 ms, uns 40 % acima da véspera. Por isso a qualidade é medida na hora, não suposta.
 

@@ -1,0 +1,5 @@
+# dependências e saídas de build ou revisão
+node_modules/
+teardown-out/
+out/
+*.log
