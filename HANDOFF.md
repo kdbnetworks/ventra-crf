@@ -8,6 +8,7 @@ Leia este arquivo inteiro antes de tocar no código; depois `README.md`; depois 
 | Arquivo | O que é |
 | --- | --- |
 | `reserva-funcional-respiratoria.html` | Página interativa, offline, ~800 KB. Build de `src/pulmao-live`. |
+| `index.html`, `.nojekyll` | GitHub Pages: o `index.html` só redireciona para o simulador, para que https://kdbnetworks.github.io/ventra-crf/ abra a página; o `.nojekyll` evita o Jekyll. Cada push no `main` republica. |
 | `LICENSE`, `THIRD_PARTY_NOTICES.md` | MIT © 2026 KDB Networks; avisos do teardown, do three.js (MIT) e das fontes (OFL). O build grava os dois no fim do HTML. |
 | `README.md` | Uso, teclas, como reconstruir. |
 | `src/pulmao-live/lung.js` | **O modelo.** Sem three.js. Um compartimento: `R·Q = Pmus + PEEP − Prs(V)`, `Prs = PL + Pcw`. CRF por bissecção de `Prs(V) = PEEP`. Cenários como parâmetros. Gases alveolares (balanço de massa, espaço morto 150 mL, reservatório de O₂ na Hb ~1 L, reservatório corporal de CO₂ ~40 L eq.). Capacidade de fechamento `CC = RV + 0,25 + 0,019·(idade−20) + CCadd`. Laplace e tensão com/sem surfactante. Controlador de esforço (`ampK`) que mantém o VT alvo. |
