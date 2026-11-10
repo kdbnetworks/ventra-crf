@@ -1,10 +1,10 @@
 // A página que se conduz: o modelo (lung.js) integrado em tempo real, o tórax (body.js) no estúdio (stage.js) sob o
 // console (console.js). Cenários, manobras, PEEP e idade; seis vistas, os modos de exibição, uma órbita que se
-// arrasta e um zoom na roda. Deixada em paz, a página percorre um guião com o cursor do operador; qualquer clique,
-// arrasto, roda ou tecla entrega o controlo ao visitante, 25 s de mãos quietas devolvem-no.
+// arrasta e um zoom na roda. Deixada em paz, a página percorre um roteiro com o cursor do operador; qualquer clique,
+// arrasto, roda ou tecla entrega o controle ao visitante, e 25 s de mãos paradas o devolvem ao tour.
 import {warmComposer} from '../kit/warm.js';
 import {G} from './body.js';
-import {ACTIONS, createConsole, DISPLAY, SCEN_LABEL, VIEWS} from './console.js';
+import {ACTIONS, createConsole, DISPLAY, fmt, SCEN_LABEL, VIEWS} from './console.js';
 import {createLung, laplace, SCEN_KEYS, tension, volumes} from './lung.js';
 import {createLungStage} from './stage.js';
 
@@ -47,8 +47,8 @@ export const VIEW_FN = {
   alveolo: (u) => ({tx: AX - 0.01, ty: -0.01, tz: 0, az: 8 + 2 * u, el: 11, d: 1.12, sx: 0, sy: -30}),
 };
 
-// ------------------------------------------------------------ o guião do tour: [t, acção]
-// acção: {btn} clica um botão; {slider, to} arrasta um deslizador; {reset} volta ao estado inicial
+// ------------------------------------------------------------ o roteiro do tour: [t, ação]
+// ação: {btn} clica um botão; {slider, to} arrasta um controle deslizante; {reset} volta ao estado inicial
 export const SCRIPT = [
   [0.0, {reset: true}],
   [2.6, {btn: 'labels'}],
@@ -98,14 +98,22 @@ export function runLive() {
   const ui = createConsole(app);
 
   // ------------------------------------------------------------ qualidade
+  // O nível sai do custo medido de um quadro (JS + GPU, com a GPU sincronizada), não do intervalo entre quadros:
+  // o intervalo também sobe com limites que não são da GPU (economia de bateria, tela a 30 Hz, aba em segundo
+  // plano), e aí baixar a qualidade não adianta. Começa no meio (no celular, embaixo); sobe se o nível de cima
+  // couber com folga em 60 Hz, desce se este passar de SLOW. Um nível que já falhou não é tentado de novo.
   const TIERS = [
     {samples: 8, ao: true, shadow: 4096, pr: 2},
     {samples: 4, ao: false, shadow: 2048, pr: 1.5},
     {samples: 2, ao: false, shadow: 1024, pr: 1},
   ];
-  const light = matchMedia('(pointer: coarse)').matches || Math.min(innerWidth, innerHeight) < 700;
+  const UP_RATIO = [0, 3.4, 1.5]; // custo do nível de cima ÷ custo deste (MX350, 2026-11-08: 10→35 ms e 7→10 ms)
+  const UP_BUDGET = 14; // ms: o nível de cima tem de caber com folga num quadro de 60 Hz (16,7 ms)
+  const SLOW = 22; // ms: acima disto (menos de ~45 fps) o nível não serve
   const q = new URLSearchParams(location.search).get('q');
-  let tier = q != null ? clamp(Number(q), 0, 2) : light ? 2 : 0;
+  const fixed = q != null; // ?q=0|1|2 fixa o nível e desliga o ajuste
+  let tier = fixed ? clamp(Number(q), 0, 2) : matchMedia('(pointer: coarse)').matches ? 2 : 1;
+  let ceiling = 0; // o nível mais alto ainda permitido; sobe de número quando um nível falha
   let scale = 1;
   const fit = () => {
     const h = innerHeight - top;
@@ -120,6 +128,34 @@ export function runLive() {
   };
   applyTier();
   addEventListener('resize', fit);
+  // a medição: de tempos em tempos espera a GPU acabar o quadro (ler um pixel força isso) e cronometra o quadro
+  // inteiro. Cinco por segundo enquanto afina, depois uma a cada 2 s para acompanhar janela e aquecimento. O
+  // espaçamento é por relógio, não por quadros: numa página lenta os quadros rareiam e a reação atrasaria.
+  const gl = st.renderer.getContext();
+  const px = new Uint8Array(4);
+  const tune = {cost: [], next: performance.now() + 1500};
+  const setTier = (t) => {
+    tier = t;
+    applyTier();
+    tune.cost = [];
+    tune.next = performance.now() + 500; // deixa passar a realocação de sombras e alvos e a compilação de shaders
+  };
+  const tuneQuality = (t0) => {
+    if (fixed || t0 < tune.next) return;
+    st.renderer.setRenderTarget(null);
+    gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    const t1 = performance.now();
+    tune.cost.push(t1 - t0);
+    if (tune.cost.length > 7) tune.cost.shift();
+    tune.next = t1 + (tune.cost.length < 7 ? 200 : 2000);
+    if (tune.cost.length < 5) return;
+    const med = [...tune.cost].sort((a, b) => a - b)[tune.cost.length >> 1];
+    if (med > SLOW && tier < TIERS.length - 1) {
+      ceiling = tier + 1;
+      setTier(tier + 1);
+    } else if (tier > ceiling && med * UP_RATIO[tier] < UP_BUDGET) setTier(tier - 1);
+  };
+  const costNow = () => (tune.cost.length ? [...tune.cost].sort((a, b) => a - b)[tune.cost.length >> 1] : null);
   const toStage = (cx, cy) => {
     const r = app.getBoundingClientRect();
     return [(cx - r.left) / scale, (cy - r.top) / scale];
@@ -129,7 +165,7 @@ export function runLive() {
   ui.root.appendChild(tourChip);
   const note = document.createElement('div');
   note.className = 'turn';
-  note.textContent = 'Vire o telemóvel de lado para o console completo';
+  note.textContent = 'Gire o celular na horizontal para ver o console completo';
   document.body.appendChild(note);
 
   // ------------------------------------------------------------ estado
@@ -161,7 +197,7 @@ export function runLive() {
     Object.assign(off, {az: 0, el: 0, k: 1});
   };
 
-  // ------------------------------------------------------------ acções (o visitante e o tour usam as mesmas)
+  // ------------------------------------------------------------ ações (o visitante e o tour usam as mesmas)
   const act = {
     scenario(k) {
       L.setScenario(k);
@@ -227,7 +263,7 @@ export function runLive() {
   addEventListener('pointerdown', (e) => {
     if (e.target !== tourChip) takeOver();
   });
-  // o cursor do operador: vai ao botão 0,16 s antes, carrega, descansa
+  // o cursor do operador: vai ao botão 0,16 s antes, clica, descansa
   const SLIDER_SPOT = (k, to) => ui.sliderKnob(k, k === 'peep' ? to / 15 : (to - 20) / 60);
   const WP = [[0, 900, 600]];
   SCRIPT.forEach(([t, a], i) => {
@@ -251,7 +287,7 @@ export function runLive() {
     const spot = ev ? (ev[1].btn ? ui.spots[ev[1].btn] : SLIDER_SPOT(ev[1].slider, ev[1].to)) : [0, 0];
     return {x: x0 + (x1 - x0) * k, y: y0 + (y1 - y0) * k, press: !!ev && c - ev[0] < 0.12, ring: rk, ringX: spot[0], ringY: spot[1]};
   };
-  // um deslizador do tour anda sozinho durante 1 s
+  // um controle deslizante do tour anda sozinho durante 1 s
   const sliderDrive = (c) => {
     for (const [t, a] of SCRIPT) {
       if (!a.slider) continue;
@@ -262,7 +298,7 @@ export function runLive() {
     }
   };
 
-  // ------------------------------------------------------------ controlos
+  // ------------------------------------------------------------ controles
   for (const k of Object.keys(ui.btn))
     ui.btn[k].addEventListener('click', () => {
       takeOver();
@@ -332,7 +368,7 @@ export function runLive() {
     {passive: false},
   );
 
-  // ------------------------------------------------------------ rótulos: pontos no mundo → ecrã
+  // ------------------------------------------------------------ rótulos: pontos no mundo → tela
   const LABELS = {
     thorax: [
       {name: 'TRAQUEIA', sub: 'R ∝ 1/r⁴ · 80 % DA RESISTÊNCIA NAS VIAS GRANDES', at: [0, 0.25, -0.028], label: [1100, 196], w: 150},
@@ -355,33 +391,16 @@ export function runLive() {
   startTour();
   reset();
   let last = performance.now();
-  const perf = {n: 0, sum: 0, slow: 0, age: 0};
   const frame = (now) => {
+    const t0 = performance.now();
     const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));
     last = now;
     T += dt;
-    if (tier < TIERS.length - 1) {
-      perf.age += dt;
-      if (perf.age > 0.6) {
-        perf.sum += dt;
-        perf.n++;
-        if (perf.sum >= 0.5 && perf.n >= 6) {
-          perf.slow = perf.sum / perf.n > 0.022 ? perf.slow + 1 : 0;
-          perf.sum = 0;
-          perf.n = 0;
-          if (perf.slow >= (perf.age < 6 ? 1 : 2)) {
-            tier++;
-            applyTier();
-            Object.assign(perf, {age: 0, slow: 0});
-          }
-        }
-      }
-    }
 
     let cursor;
     if (AP.on) {
       const c = (T - AP.t0) % DURATION;
-      // dispara as acções do guião pela ordem, uma vez cada
+      // dispara as ações do roteiro em ordem, uma vez cada
       const idx = SCRIPT.findIndex(([t]) => t > c);
       const upto = idx < 0 ? SCRIPT.length : idx;
       if (upto < AP.last) AP.last = -1; // deu a volta
@@ -404,7 +423,7 @@ export function runLive() {
     const m = L.read(cmd);
     if (cmd.mode === 'apneia' && m.SaO2 < 0.85) cmd.mode = 'tidal';
 
-    // câmara
+    // câmera
     const since = T - viewAt0;
     const tgt = VIEW_FN[view](since);
     tgt.az += off.az + (disp.orbit.on ? 12 * (T - disp.orbit.t) : 0);
@@ -429,10 +448,10 @@ export function runLive() {
         const small = c.name === 'ALVÉOLO PEQUENO';
         const r = small ? 70 * (1 - 0.7 * m.instab) : 100 * (1 + 0.28 * m.instab);
         const Tn = tension(cmd.surf, small ? 0.6 : 1.0);
-        sub = `r ${Math.round(r)} µm · T ${Math.round(Tn)} mN/m · P = 2T/r = ${laplace(Tn, r).toFixed(1)} cmH₂O`;
+        sub = `r ${Math.round(r)} µm · T ${Math.round(Tn)} mN/m · P = 2T/r = ${fmt(laplace(Tn, r), 1)} cmH₂O`;
       }
-      if (c.name === 'BASES') sub = m.closed > 0.02 ? `${Math.round(m.closed * 100)} % FECHADAS · SHUNT ${Math.round(m.shunt * 100)} %` : `ABERTAS · CRF ${m.CRF.toFixed(2)} > CC ${m.CC.toFixed(2)} L`;
-      if (c.name === 'PLEURA') sub = `ESPAÇO VIRTUAL · Ppl ≈ ${(-m.PL).toFixed(1)} cmH₂O AGORA`;
+      if (c.name === 'BASES') sub = m.closed > 0.02 ? `${Math.round(m.closed * 100)} % FECHADAS · SHUNT ${Math.round(m.shunt * 100)} %` : `ABERTAS · CRF ${fmt(m.CRF, 2)} > CC ${fmt(m.CC, 2)} L`;
+      if (c.name === 'PLEURA') sub = `ESPAÇO VIRTUAL · Ppl ≈ ${fmt(m.Ppl, 1)} cmH₂O AGORA`;
       return {...c, sub, at, o: lab};
     });
     ui.update({m, mode: cmd.mode, apnea: cmd.mode === 'apneia', preox: cmd.preox, surf: cmd.surf, peep: cmd.peep, age: cmd.age, view, display: Object.fromEntries(DISPLAY.map((x) => [x, disp[x].on])), callouts, cursor});
@@ -444,11 +463,16 @@ export function runLive() {
       window.SIM_SHOWN = true;
       dispatchEvent(new Event('simframe'));
     }
+    tuneQuality(t0);
     requestAnimationFrame(frame);
   };
   warmComposer(st.renderer, st.composer, st.scene, st.camera).then(() => requestAnimationFrame(frame));
   window.LIVE = {st, cam, L, cmd, startTour, takeOver, press, snap: () => Object.assign(cam, VIEW_FN[view](T - viewAt0)), get tier() {
     return tier;
+  }, get ceiling() {
+    return ceiling;
+  }, get cost() {
+    return costNow();
   }, get T() {
     return T;
   }};

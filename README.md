@@ -12,17 +12,19 @@ Um único modelo move tudo: o tórax 3D, os gráficos e os números saem da mesm
 - **Mola dupla**: PL é a retração do pulmão, Pcw a da caixa torácica. A CRF é o volume em que Prs = PEEP (bissecção).
 - **Cenários** (só mudam parâmetros — a CRF, o VT real, τ e a auto-PEEP emergem): normal em pé, decúbito, obesidade,
   gestante, anestesia, DPOC, SDRA.
-- **Controlos**: capacidade vital (manobra até a CPT e o VR), apneia (termina sozinha a SaO₂ < 85 %), pré-O₂ 100 %,
+- **Controles**: capacidade vital (manobra até a CPT e o VR), apneia (termina sozinha a SaO₂ < 85 %), pré-O₂ 100 %,
   surfactante (liga/desliga a instabilidade de Laplace no ácino), PEEP 0–15 cmH₂O, idade 20–80 (move a capacidade de
   fechamento).
 - **Gases**: PAO₂/PACO₂ por balanço de massa alveolar com espaço morto de 150 mL; reservatório de O₂ na hemoglobina
-  (~1 L) e de CO₂ corporal (~40 L equivalentes); shunt proporcional à fração de bases fechadas (CRF < CC).
-- **Vistas**: hero, frente, lado, árvore (vidro), diafragma, alvéolo (ácino ampliado com dois alvéolos de Laplace).
+  (~1 L) e de CO₂ corporal (~40 L equivalentes); shunt pela fração de bases fechadas (CRF < CC) há tempo bastante
+  para o sangue esgotar o O₂ delas (~40 s); reabrir devolve a ventilação em segundos.
+- **Vistas**: geral, frente, lado, árvore (vidro), diafragma, alvéolo (ácino ampliado com dois alvéolos de Laplace).
 - **Exibição**: rótulos com guias, vidro, corte coronal, costelas, órbita.
-- **Tour automático** de 103 s com cursor; qualquer clique assume o controlo, 25 s parados devolvem-no.
+- **Tour automático** de 103 s com cursor; qualquer clique assume o controle, e 25 s parados o devolvem ao tour.
 
 Teclas: 1–6 vistas · V cap. vital · A apneia · O pré-O₂ · S surfactante · R rótulos · G vidro · C corte · K costelas · B órbita.
-`?q=2` na URL força a qualidade baixa (GPU integrada fraca).
+A qualidade se ajusta sozinha pelo custo medido de cada quadro. `?q=0`, `?q=1` ou `?q=2` na URL fixa um nível
+(0 é o mais alto) e desliga o ajuste.
 
 ## Valores
 
@@ -30,12 +32,21 @@ Didáticos, adulto ~70 kg (West, Nunn, Lumb). Não substituem equações de refe
 
 ## Reconstruir / iterar
 
-```
-git clone https://github.com/elvarofficial/teardown && cd teardown
-npm install
-cp -r <esta pasta>/src/pulmao-live sims/pulmao-live
-node sims/build.mjs pulmao-live     # → teardown-out/dist/pulmao-live.html
+O teardown fica ao lado do repositório (`C:\kdbnetworks\teardown`; outro lugar com `TEARDOWN=/caminho`). Uma vez:
+
+```bash
+git clone https://github.com/elvarofficial/teardown && cd teardown && git config core.autocrlf false && npm install --ignore-scripts
 ```
 
-Ficheiros em `src/pulmao-live/`: `lung.js` (modelo, sem three.js) · `body.js` (geometria) · `stage.js` (estúdio) ·
-`console.js` (painéis) · `live.js` (página, tour, controlos) · `main.js`.
+Depois de mexer em `src/`, na raiz do repositório:
+
+```bash
+node crf/tools/build.mjs
+```
+
+O script copia `src/pulmao-live` para o teardown, roda o build e grava `reserva-funcional-respiratoria.html` com
+`lang="pt-BR"` e o título da página, que o teardown escreveria como `en` e `pulmao-live`.
+
+Arquivos em `src/pulmao-live/`: `lung.js` (modelo, sem three.js) · `body.js` (geometria) · `stage.js` (estúdio) ·
+`console.js` (painéis) · `live.js` (página, tour, controles) · `main.js`. Números na tela passam por `fmt()` do
+`console.js` (vírgula decimal, sinal de menos tipográfico).

@@ -4,7 +4,7 @@
 
 export const PB = 760; // pressão barométrica, mmHg
 export const PH2O = 47; // vapor d'água a 37 °C
-export const VD = 0.15; // espaço morto anatómico, L
+export const VD = 0.15; // espaço morto anatômico, L
 
 // Cada cenário muda só parâmetros. CRF, VT real, tau e tudo o mais saem da mesma equação.
 //   TLC/RV: capacidade pulmonar total e volume residual (L)
@@ -20,11 +20,11 @@ export const SCEN = {
   supino: {name: 'Decúbito dorsal', sub: 'VÍSCERAS SOBRE O DIAFRAGMA', TLC: 5.8, RV: 1.2, CL: 0.2, Ccw: 0.2, V0cw: 2.6, R: 2.0, VT: 0.5, RR: 12, CCadd: 0, VO2: 250, VCO2: 200,
     note: 'O conteúdo abdominal empurra o diafragma para cima: a caixa descansa num volume menor e a CRF cai 0,4 a 0,5 L.'},
   obeso: {name: 'Obesidade · deitado', sub: 'CAIXA PESADA E RÍGIDA', TLC: 5.4, RV: 1.2, CL: 0.2, Ccw: 0.1, V0cw: 2.2, R: 3.0, VT: 0.5, RR: 16, CCadd: 0, VO2: 330, VCO2: 270,
-    note: 'Massa sobre o tórax e o abdómen: a caixa fica rígida e descansa baixo. A CRF cai para perto da capacidade de fechamento.'},
+    note: 'Massa sobre o tórax e o abdome: a caixa fica rígida e descansa baixo. A CRF cai para perto da capacidade de fechamento.'},
   gestante: {name: 'Gestação · 3º trimestre', sub: 'ÚTERO ELEVA O DIAFRAGMA', TLC: 5.6, RV: 1.0, CL: 0.2, Ccw: 0.15, V0cw: 2.3, R: 2.0, VT: 0.65, RR: 14, CCadd: 0, VO2: 300, VCO2: 240,
-    note: 'Diafragma ~4 cm mais alto, CRF menor e consumo de O2 ~20 % maior: a reserva esgota-se em metade do tempo.'},
-  anestesia: {name: 'Anestesia geral', sub: 'SEM TÓNUS · DEITADO', TLC: 5.6, RV: 1.2, CL: 0.15, Ccw: 0.2, V0cw: 2.4, R: 2.5, VT: 0.45, RR: 12, CCadd: 0.2, VO2: 220, VCO2: 180,
-    note: 'Perda do tónus muscular, diafragma cefálico e atelectasia nas bases: −15 a 20 % além do decúbito, em minutos.'},
+    note: 'Diafragma ~4 cm mais alto, CRF menor e consumo de O2 ~20 % maior: a reserva se esgota na metade do tempo.'},
+  anestesia: {name: 'Anestesia geral', sub: 'SEM TÔNUS · DEITADO', TLC: 5.6, RV: 1.2, CL: 0.15, Ccw: 0.2, V0cw: 2.4, R: 2.5, VT: 0.45, RR: 12, CCadd: 0.2, VO2: 220, VCO2: 180,
+    note: 'Perda do tônus muscular, diafragma cefálico e atelectasia nas bases: −15 a 20 % além do decúbito, em minutos.'},
   dpoc: {name: 'DPOC · enfisema', sub: 'PERDA DE RETRAÇÃO', TLC: 7.6, RV: 3.0, CL: 0.4, Ccw: 0.2, V0cw: 3.4, R: 12, VT: 0.45, RR: 15, CCadd: 0.2, VO2: 260, VCO2: 210,
     note: 'Pulmão complacente demais e vias aéreas estreitas: tau longo, expiração incompleta, CRF dinâmica acima da estática.'},
   sdra: {name: 'SDRA', sub: '"BABY LUNG"', TLC: 3.5, RV: 1.0, CL: 0.05, Ccw: 0.2, V0cw: 2.6, R: 4.0, VT: 0.4, RR: 24, CCadd: 0.6, VO2: 300, VCO2: 240,
@@ -88,7 +88,7 @@ export const volumes = (p, peep, age) => {
 
 /**
  * O estado integrado da máquina. step(dt, cmd) avança o compartimento; cmd traz PEEP, idade, FiO2, as manobras
- * (modo 'tidal' | 'vc' | 'apneia') e o surfactante. Tudo o que o ecrã mostra sai de read().
+ * (modo 'tidal' | 'vc' | 'apneia') e o surfactante. Tudo o que a tela mostra sai de read().
  */
 export function createLung(key = 'normal') {
   const S = {
@@ -109,6 +109,11 @@ export function createLung(key = 'normal') {
     FCv: 0.0645, // CO2 "venoso": o reservatório corporal de CO2 que alimenta o alvéolo (≈ 46 mmHg)
     pmus: 0,
     closed: 0, // fração fechada, média móvel
+    trapped: 0, // fração fechada há tempo bastante para o sangue ter esgotado o O2 dela: é a que conta como shunt
+    syncTrapped: true, // no próximo passo, põe trapped no equilíbrio do cenário (o paciente novo já chega assim)
+    blind: 0, // segundos de transição que ainda faltam: o volume neste trecho não entra em Vmin/Vmax
+    track0: 0, // fase (s) em que a medição do ciclo atual começou
+    ok: false, // já houve um ciclo medido inteiro depois da última transição
     apneaT: 0,
     vcT: 0,
     instab: 0, // instabilidade alveolar sem surfactante, 0..1
@@ -117,18 +122,32 @@ export function createLung(key = 'normal') {
     trace: new Float32Array(1200), // 20 s a 60 Hz
     ti: 0,
   };
+  // Recomeça o ciclo depois de uma troca de cenário ou de uma manobra. O volume dos primeiros 3 tau ainda é a
+  // transição e fica fora da medição; o VT real e a auto-PEEP só voltam quando houver um ciclo medido inteiro.
+  // Sem isto mostravam o salto de um cenário para o outro, ou a manobra que acabou, como respiração corrente.
+  const restartCycle = () => {
+    S.phase = 0;
+    S.Vmin = S.V;
+    S.Vmax = S.V;
+    S.vi = 0;
+    S.blind = 3 * tau(S.p);
+    S.track0 = 0;
+    S.ok = false;
+  };
   const setScenario = (k) => {
     S.key = k;
     S.p = {...SCEN[k]};
     S.vcT = 0;
     S.ampK = 1;
+    S.syncTrapped = true;
+    restartCycle();
   };
   const stepOnce = (dt, c) => {
     const p = S.p;
     const peep = c.peep || 0;
     const Tcyc = 60 / p.RR;
     const Ti = 0.4 * Tcyc;
-    // a pressão muscular: um seno na inspiração, nada na expiração (passiva); as manobras sobrepõem-se
+    // a pressão muscular: um seno na inspiração, nada na expiração (passiva); as manobras se sobrepõem
     let pmus = 0;
     let mode = c.mode;
     if (mode === 'vc') {
@@ -147,25 +166,29 @@ export function createLung(key = 'normal') {
       else if (u < 9.0) pmus = pBot;
       else if (u < 10.5) pmus = pBot * (1 - sm(9.0, 10.5, u));
       else mode = 'done';
-      S.phase = 0;
-      S.vi = 0;
+      restartCycle();
     } else if (mode === 'apneia') {
       pmus = 0;
       S.apneaT += dt;
-      S.phase = 0;
+      restartCycle();
     } else {
       S.phase += dt;
       if (S.phase >= Tcyc) {
         S.phase -= Tcyc;
-        S.lastMin = S.Vmin;
-        S.lastMax = S.Vmax;
-        S.endExp = S.V;
-        // o centro respiratório corrige o esforço para manter o volume corrente alvo
-        const vt = S.lastMax - S.lastMin;
-        if (vt > 0.05) S.ampK = clamp(S.ampK * Math.sqrt(clamp(p.VT / vt, 0.7, 1.4)), 0.4, 3);
+        // só vale o ciclo cuja medição começou antes do pico da inspiração
+        if (S.blind <= 0 && S.track0 <= 0.8 * Ti) {
+          S.lastMin = S.Vmin;
+          S.lastMax = S.Vmax;
+          S.endExp = S.V;
+          S.ok = true;
+          // o centro respiratório corrige o esforço para manter o volume corrente alvo
+          const vt = S.lastMax - S.lastMin;
+          if (vt > 0.05) S.ampK = clamp(S.ampK * Math.sqrt(clamp(p.VT / vt, 0.7, 1.4)), 0.4, 3);
+        }
         S.Vmin = S.V;
         S.Vmax = S.V;
         S.vi = 0;
+        S.track0 = 0;
       }
       // amplitude que produz ~VT na dinâmica: VT/Crs com margem pela resistência
       const w = (Math.PI * tau(p)) / Ti;
@@ -179,6 +202,12 @@ export function createLung(key = 'normal') {
     S.V = clamp(S.V + Q * dt, p.RV * 0.98, p.TLC * 1.01);
     S.Vmin = Math.min(S.Vmin, S.V);
     S.Vmax = Math.max(S.Vmax, S.V);
+    if (S.blind > 0) {
+      S.blind -= dt;
+      S.Vmin = S.V;
+      S.Vmax = S.V;
+      S.track0 = S.phase;
+    }
     // gases alveolares: o ar novo só chega depois do espaço morto; O2 sai para o sangue, CO2 entra
     const fi = c.preox ? 1.0 : 0.21;
     const vo2 = p.VO2 / 60000;
@@ -190,7 +219,7 @@ export function createLung(key = 'normal') {
         S.FC += ((Q * (0 - S.FC)) / S.V) * dt;
       }
     }
-    // o sangue também é reservatório: ~1 L de O2 ligado à hemoglobina, libertado quando a saturação cai
+    // o sangue também é reservatório: ~1 L de O2 ligado à hemoglobina, liberado quando a saturação cai
     const saNow = sat(S.FA * (PB - PH2O) - 8);
     const release = (S.saPrev - saNow) * 1.0;
     S.saPrev = saNow;
@@ -200,9 +229,17 @@ export function createLung(key = 'normal') {
     const inflow = Math.max(0, 0.39 * (S.FCv - S.FC));
     S.FC = clamp(S.FC + (inflow / S.V) * dt, 0.0, 0.3);
     S.FCv = clamp(S.FCv + ((vco2 - inflow) / 40) * dt, 0.03, 0.3);
+    // fechar não é ainda shunt: a unidade fechada guarda gás e o sangue leva ~40 s a esgotar o O2 dela; reabrir
+    // devolve a ventilação em segundos. Por isso uma capacidade vital (3 s no VR) quase não mexe na SaO2, e a SDRA,
+    // que já chega com as bases fechadas, entra com o shunt de equilíbrio (no volume médio do ciclo, ~CRF + 0,3·VT).
+    if (S.syncTrapped) {
+      S.closed = S.trapped = closedFrac(p, frcStatic(p, peep) + 0.3 * p.VT, c.age);
+      S.syncTrapped = false;
+    }
     // fechamento das vias aéreas dependentes, filtrado
     const cf = closedFrac(p, S.V, c.age);
     S.closed += (cf - S.closed) * (1 - Math.exp(-dt / 1.5));
+    S.trapped += (S.closed - S.trapped) * (1 - Math.exp(-dt / (S.closed > S.trapped ? 40 : 3)));
     // sem surfactante, a instabilidade de Laplace cresce; com ele, resolve
     S.instab = clamp(S.instab + (c.surf ? -dt / 1.2 : dt / 2.5), 0, 1);
     S.t += dt;
@@ -233,7 +270,9 @@ export function createLung(key = 'normal') {
       const vols = volumes(p, c.peep, c.age);
       const PAO2 = S.FA * (PB - PH2O);
       const PACO2 = S.FC * (PB - PH2O);
-      const shunt = 0.03 + 0.45 * S.closed;
+      const shunt = 0.03 + 0.45 * S.trapped;
+      const Palv = (c.peep || 0) - p.R * S.Q; // pressão alveolar: a da boca menos a queda resistiva
+      const steady = S.ok && c.mode !== 'vc' && c.mode !== 'apneia';
       const sa = (1 - shunt) * sat(PAO2 - 8) + shunt * 0.75;
       const rRel = clamp((S.V - p.RV) / (p.TLC - p.RV), 0.05, 1);
       return {
@@ -244,15 +283,18 @@ export function createLung(key = 'normal') {
         V: S.V,
         Q: S.Q,
         pmus: S.pmus,
-        Palv: (c.peep || 0) - p.R * S.Q, // pressão alveolar: a da boca menos a queda resistiva
+        Palv,
+        // pressão pleural: a alveolar menos a retração do pulmão (= Pcw − Pmus). Só é −PL sem PEEP e sem fluxo.
+        Ppl: Palv - PL(p, S.V),
         PL: PL(p, S.V),
         Pcw: Pcw(p, S.V),
         Prs: Prs(p, S.V),
         Crs: Crs(p),
         tau: tau(p),
-        VTreal: Math.max(0, S.lastMax - S.lastMin),
+        // null enquanto a respiração ainda não assentou (troca de cenário, manobra, apneia): a tela mostra «—»
+        VTreal: steady ? Math.max(0, S.lastMax - S.lastMin) : null,
         endExp: S.endExp,
-        autoPeep: Math.max(0, Prs(p, S.endExp) - (c.peep || 0)),
+        autoPeep: steady ? Math.max(0, Prs(p, S.endExp) - (c.peep || 0)) : null,
         FA: S.FA,
         FC: S.FC,
         PAO2,

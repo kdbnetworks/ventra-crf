@@ -1,11 +1,11 @@
 // O console, a 1600 x 900: cabeçalho, estado do sistema com a coluna de volumes, espirograma, gases, cenários,
-// controlos (manobras, PEEP, idade), vistas, exibição, a nota do cenário e a curva pressão–volume com a mola dupla.
+// controles (manobras, PEEP, idade), vistas, exibição, a nota do cenário e a curva pressão–volume com a mola dupla.
 // update(s) redesenha tudo a partir do estado do frame. Rótulos com guias apontam para as peças no 3D.
 import {SCEN, SCEN_KEYS, PL, Pcw, Prs} from './lung.js';
 
 export const C = {ink: '#2a2521', mute: '#9b8f80', faint: '#d9cdbb', line: '#eadfcd', panel: 'rgba(252,249,244,.95)', or: '#e3562a', green: '#2fa36b', blue: '#3c79a8', red: '#c0392b', pink: '#e39a8c'};
 export const VIEWS = ['hero', 'frente', 'lado', 'arvore', 'diafragma', 'alveolo'];
-export const VIEW_LABEL = {hero: 'HERO', frente: 'FRENTE', lado: 'LADO', arvore: 'ÁRVORE', diafragma: 'DIAFRAGMA', alveolo: 'ALVÉOLO'};
+export const VIEW_LABEL = {hero: 'GERAL', frente: 'FRENTE', lado: 'LADO', arvore: 'ÁRVORE', diafragma: 'DIAFRAGMA', alveolo: 'ALVÉOLO'};
 export const DISPLAY = ['labels', 'vidro', 'corte', 'costelas', 'orbit'];
 export const DISPLAY_LABEL = {labels: 'RÓTULOS', vidro: 'VIDRO', corte: 'CORTE', costelas: 'COSTELAS', orbit: 'ÓRBITA'};
 export const ACTIONS = ['cv', 'apneia', 'preox', 'surf'];
@@ -37,8 +37,14 @@ const el = (h) => {
   d.innerHTML = h.trim();
   return d.firstElementChild;
 };
-const f1 = (x) => x.toFixed(1);
-const f2 = (x) => x.toFixed(2);
+/** Número para texto em PT-BR: vírgula decimal, sinal de menos tipográfico e nada de «−0,0». Só para texto; as
+ *  coordenadas de SVG e CSS continuam com toFixed. */
+export const fmt = (x, d) => {
+  const s = (Math.abs(x) < 0.5 * 10 ** -d ? 0 : x).toFixed(d);
+  return s.replace('.', ',').replace('-', '−');
+};
+const f1 = (x) => fmt(x, 1);
+const f2 = (x) => fmt(x, 2);
 const T = (x, y, s, fill = C.mute, extra = '') => `<text x="${x}" y="${y}" font-size="7.6" letter-spacing="1" fill="${fill}" font-family="JetBrains Mono" ${extra}>${s}</text>`;
 
 export function createConsole(app) {
@@ -127,8 +133,8 @@ export function createConsole(app) {
   panel(1313, 126, 258, 136, 'CENÁRIO', '04');
   btnRow(SCEN_KEYS, SCEN_LABEL, 1327, 163);
 
-  // ------------------------------------------------------------ 05 controlos
-  panel(1313, 276, 258, 212, 'CONTROLOS', '05');
+  // ------------------------------------------------------------ 05 controles
+  panel(1313, 276, 258, 212, 'CONTROLES', '05');
   btnRow(ACTIONS, ACTION_LABEL, 1327, 313);
   const slider = (y, name, x0 = 1327, w = 150) => {
     add(`<div class="sm" style="position:absolute;left:${x0}px;top:${y - 2}px">${name}</div>`);
@@ -142,7 +148,7 @@ export function createConsole(app) {
 
   // ------------------------------------------------------------ 06 vistas, 07 exibição
   panel(1313, 502, 258, 107, 'VISTAS', '06');
-  btnRow(VIEWS, VIEW_LABEL, 1327, 539);
+  btnRow(VIEWS, VIEW_LABEL, 1327, 539, 236); // 236: ALVÉOLO cabe na 2ª linha; numa 3ª sairia do painel
   panel(1313, 623, 258, 107, 'EXIBIÇÃO', '07');
   btnRow(DISPLAY, DISPLAY_LABEL, 1327, 660);
 
@@ -158,10 +164,10 @@ export function createConsole(app) {
   const spring = add(`<svg style="position:absolute;left:948px;top:768px" width="210" height="86"></svg>`);
 
   // ------------------------------------------------------------ rodapé e notas de chão
-  add(`<div class="sm" style="position:absolute;left:27px;top:882px;letter-spacing:2.2px">ESTUDO DIRIGIDO &nbsp;·&nbsp; MODELO PROCEDURAL &nbsp;·&nbsp; UM INPUT: A PRESSÃO MUSCULAR</div>`);
+  add(`<div class="sm" style="position:absolute;left:27px;top:882px;letter-spacing:2.2px">ESTUDO DIRIGIDO &nbsp;·&nbsp; MODELO PROCEDURAL &nbsp;·&nbsp; UMA ÚNICA ENTRADA: A PRESSÃO MUSCULAR</div>`);
   add(`<div class="sm" style="position:absolute;right:28px;top:882px;letter-spacing:2.2px">VALORES DIDÁTICOS · ADULTO ~70 KG <span style="color:${C.or}">//////</span></div>`);
   const notes = add(`<div style="position:absolute;inset:0"></div>`);
-  notes.innerHTML = `<div class="sm" style="position:absolute;left:367px;top:690px;line-height:16px;letter-spacing:2px">VISTA ANTERIOR<br>O PACIENTE ENCARA-O</div>
+  notes.innerHTML = `<div class="sm" style="position:absolute;left:367px;top:690px;line-height:16px;letter-spacing:2px">VISTA ANTERIOR<br>O PACIENTE OLHA PARA VOCÊ</div>
     <svg style="position:absolute;left:398px;top:162px" width="90" height="80"><path d="M0 80V0h80" fill="none" stroke="${C.or}" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/></svg>
     <svg style="position:absolute;left:1088px;top:606px" width="80" height="80"><path d="M80 0v76H0" fill="none" stroke="${C.or}" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/></svg>`;
 
@@ -202,7 +208,7 @@ export function createConsole(app) {
       // estado
       const moving = m.phaseName.startsWith('INSP') || m.phaseName.startsWith('EXP');
       chip.style.background = m.phaseName === 'APNEIA' ? C.red : moving ? C.or : C.green;
-      stTitle.textContent = m.phaseName.charAt(0) + m.phaseName.slice(1).toLowerCase();
+      stTitle.textContent = (m.phaseName.charAt(0) + m.phaseName.slice(1).toLowerCase()).replace(/\bcrf\b/, 'CRF');
       stSub.textContent = `${SCEN[m.key].name.toUpperCase()} · V ${f2(m.V)} L`;
       // a coluna de volumes: CPT no topo, zero em baixo; as faixas VRI / VC / VRE / VR, a CRF, a CC e o marcador
       {
@@ -217,8 +223,10 @@ export function createConsole(app) {
         let h = '';
         h += band(0, p.RV, '#d9cdbb', 'VR', `${f1(p.RV)} L`);
         h += band(p.RV, crf, '#efc7b9', 'VRE', `${f1(crf - p.RV)} L`, crf - p.RV < 0.9 ? 6 : 0);
-        h += band(crf, Math.min(p.TLC, crf + m.VTreal), C.or, 'VC', `${f2(m.VTreal)} L`, -5);
-        h += band(Math.min(p.TLC, crf + m.VTreal), p.TLC, '#f5dccf', 'VRI', `${f1(Math.max(0, p.TLC - crf - m.VTreal))} L`);
+        // em transição o VT real é null: a faixa usa o alvo e o rótulo mostra «—»
+        const vt = m.VTreal ?? p.VT;
+        h += band(crf, Math.min(p.TLC, crf + vt), C.or, 'VC', m.VTreal == null ? '—' : `${f2(m.VTreal)} L`, -5);
+        h += band(Math.min(p.TLC, crf + vt), p.TLC, '#f5dccf', 'VRI', `${f1(Math.max(0, p.TLC - crf - vt))} L`);
         // escala
         for (let v = 0; v <= VMAX; v += VMAX > 4 ? 2 : 1) h += `<line x1="${x0 - 6}" x2="${x0 - 2}" y1="${Y(v)}" y2="${Y(v)}" stroke="${C.mute}" stroke-width="1"/>` + T(x0 - 26, Y(v) + 3, `${v} L`);
         // CPT, CRF e CC
@@ -257,9 +265,9 @@ export function createConsole(app) {
         h += `<circle cx="${vx}" cy="${Y(m.V)}" r="2.6" fill="${C.or}"/>`;
         spiro.innerHTML = h;
         kvF.innerHTML = `${p.RR}<small>rpm</small>`;
-        kvVT.innerHTML = `${f2(m.VTreal)}<small>L</small>`;
+        kvVT.innerHTML = m.VTreal == null ? '—' : `${f2(m.VTreal)}<small>L</small>`;
         kvTau.innerHTML = `${f2(m.tau)}<small>s</small>`;
-        kvAuto.innerHTML = `${f1(m.autoPeep)}<small>cmH₂O</small>`;
+        kvAuto.innerHTML = m.autoPeep == null ? '—' : `${f1(m.autoPeep)}<small>cmH₂O</small>`;
         kvCrs.innerHTML = `${Math.round(m.Crs * 1000)}<small>mL/cmH₂O</small>`;
         kvR.innerHTML = `${f1(p.R)}<small>cmH₂O/L/s</small>`;
       }
@@ -300,7 +308,7 @@ export function createConsole(app) {
         noteT.textContent = SCEN[m.key].sub;
         noteB.textContent = SCEN[m.key].note;
       }
-      // curva P–V: V no eixo x, pressão no y; PL a tracejado, Pcw a tracejado azul, Prs a cheio; o ponto actual
+      // curva P–V: V no eixo x, pressão no y; PL tracejada, Pcw tracejada em azul, Prs contínua; o ponto atual
       {
         const W = 480;
         const H = 84;
@@ -310,7 +318,7 @@ export function createConsole(app) {
         let h = `<line x1="${x0}" x2="${W}" y1="${Yp(0)}" y2="${Yp(0)}" stroke="${C.faint}" stroke-width="1"/>`;
         h += `<line x1="${x0}" x2="${x0}" y1="4" y2="80" stroke="${C.faint}" stroke-width="1"/>`;
         for (let v = 0; v <= 8; v += 2) h += T(X(v) - 4, 82, `${v}`);
-        for (const P of [-20, 0, 20, 40]) h += T(0, Yp(P) + 3, `${P > 0 ? '+' : ''}${P}`);
+        for (const P of [-20, 0, 20, 40]) h += T(0, Yp(P) + 3, `${P > 0 ? '+' : ''}${fmt(P, 0)}`);
         const path = (fn, col, dash, wdt = 1.2) => {
           let d = '';
           for (let i = 0; i <= 60; i++) {
@@ -352,7 +360,7 @@ export function createConsole(app) {
         h += T(xP - 16, 20, 'PLEURA', C.or);
         const xF = 30 + 150 * Math.min(1, Math.max(0, (m.CRF - p.RV) / (p.TLC - p.RV)));
         h += `<line x1="${xF}" x2="${xF}" y1="58" y2="66" stroke="${C.or}" stroke-width="1" stroke-dasharray="2 2"/>`;
-        h += T(176, 10, `Ppl ${(-m.PL).toFixed(1)}`, C.mute);
+        h += T(176, 10, `Ppl ${f1(m.Ppl)}`, C.mute);
         spring.innerHTML = h;
       }
       // rótulos com guias
