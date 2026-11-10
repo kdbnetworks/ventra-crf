@@ -1,7 +1,9 @@
 # Reserva Funcional Respiratória — simulador interativo
 
-Página única e offline (`reserva-funcional-respiratoria.html`, ~800 KB): baixe e abra no navegador, sem instalar
-nada. Construída com o [teardown](https://github.com/elvarofficial/teardown) (three.js + console de painéis + tour
+**Abrir no navegador: https://kdbnetworks.github.io/ventra-crf/**
+
+Página única e offline (`reserva-funcional-respiratoria.html`, ~800 KB): abra pelo link acima ou baixe o arquivo e
+abra no navegador, sem instalar nada. Construída com o [teardown](https://github.com/elvarofficial/teardown) (three.js + console de painéis + tour
 automático).
 
 É material de estudo de fisiologia respiratória: não serve para avaliar pacientes nem para orientar condutas clínicas.
