@@ -332,7 +332,7 @@ export function runLive() {
   addEventListener('keydown', (e) => {
     if (e.altKey || e.ctrlKey || e.metaKey) return;
     const key = e.key.toLowerCase();
-    const map = {1: 'hero', 2: 'frente', 3: 'lado', 4: 'arvore', 5: 'diafragma', 6: 'alveolo', v: 'cv', a: 'apneia', o: 'preox', s: 'surf', r: 'labels', g: 'vidro', c: 'corte', k: 'costelas', b: 'orbit', n: 'normal', d: 'dpoc'};
+    const map = {1: 'hero', 2: 'frente', 3: 'lado', 4: 'arvore', 5: 'diafragma', 6: 'alveolo', v: 'cv', a: 'apneia', o: 'preox', s: 'surf', r: 'labels', g: 'vidro', c: 'corte', k: 'costelas', b: 'orbit', n: 'normal', d: 'dpoc', t: 'atelectasia'};
     const k = map[key];
     if (!k) return;
     takeOver();

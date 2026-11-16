@@ -10,7 +10,7 @@ export const DISPLAY = ['labels', 'vidro', 'corte', 'costelas', 'orbit'];
 export const DISPLAY_LABEL = {labels: 'RÓTULOS', vidro: 'VIDRO', corte: 'CORTE', costelas: 'COSTELAS', orbit: 'ÓRBITA'};
 export const ACTIONS = ['cv', 'apneia', 'preox', 'surf'];
 export const ACTION_LABEL = {cv: 'CAP. VITAL', apneia: 'APNEIA', preox: 'PRÉ-O₂ 100 %', surf: 'SURFACTANTE'};
-export const SCEN_LABEL = {normal: 'NORMAL', supino: 'DECÚBITO', obeso: 'OBESIDADE', gestante: 'GESTANTE', anestesia: 'ANESTESIA', dpoc: 'DPOC', sdra: 'SDRA'};
+export const SCEN_LABEL = {normal: 'NORMAL', supino: 'DECÚBITO', obeso: 'OBESIDADE', gestante: 'GESTANTE', anestesia: 'ANESTESIA', atelectasia: 'ATELECTASIA', dpoc: 'DPOC', sdra: 'SDRA'};
 
 const CSS = `
 #app{font-family:Inter,system-ui,sans-serif;color:${C.ink};-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
@@ -116,22 +116,25 @@ export function createConsole(app) {
 
   // ------------------------------------------------------------ 04 cenário
   const btn = {};
-  const btnRow = (keys, labels, x0, y, wmax = 230) => {
+  // pad: folga do botão além do texto. 22 é o padrão; a fileira de cenários usa 18 (com 6 px de respiro em vez de 10)
+  // para os oito cenários caberem em três linhas no painel CENÁRIO
+  const btnRow = (keys, labels, x0, y, wmax = 230, pad = 22) => {
     let x = x0;
     let yy = y;
+    const respiro = pad < 22 ? 'padding:0 6px;' : '';
     for (const k of keys) {
-      const w = Math.round(labels[k].length * 7.1 + 22);
+      const w = Math.round(labels[k].length * 7.1 + pad);
       if (x + w > x0 + wmax) {
         x = x0;
         yy += 29;
       }
-      btn[k] = add(`<div class="bt" style="left:${x}px;top:${yy}px;width:${w}px;height:23px">${labels[k]}</div>`);
+      btn[k] = add(`<div class="bt" style="left:${x}px;top:${yy}px;width:${w}px;height:23px;${respiro}">${labels[k]}</div>`);
       x += w + 6;
     }
     return yy + 29;
   };
   panel(1313, 126, 258, 136, 'CENÁRIO', '04');
-  btnRow(SCEN_KEYS, SCEN_LABEL, 1327, 163);
+  btnRow(SCEN_KEYS, SCEN_LABEL, 1327, 163, 230, 18);
 
   // ------------------------------------------------------------ 05 controles
   panel(1313, 276, 258, 212, 'CONTROLES', '05');

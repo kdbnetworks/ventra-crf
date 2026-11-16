@@ -25,6 +25,14 @@ export const SCEN = {
     note: 'Diafragma ~4 cm mais alto, CRF menor e consumo de O2 ~20 % maior: a reserva se esgota na metade do tempo.'},
   anestesia: {name: 'Anestesia geral', sub: 'SEM TÔNUS · DEITADO', TLC: 5.6, RV: 1.2, CL: 0.15, Ccw: 0.2, V0cw: 2.4, R: 2.5, VT: 0.45, RR: 12, CCadd: 0.2, VO2: 220, VCO2: 180,
     note: 'Perda do tônus muscular, diafragma cefálico e atelectasia nas bases: −15 a 20 % além do decúbito, em minutos.'},
+  // Atelectasia dependente, deitado. Parte do decúbito e junta duas coisas que uma TC de tórax mostrou em proporção
+  // (nenhum dado de paciente aqui): ~12 % do pulmão sem ar, concentrado nas regiões de baixo, e parte dele reabrindo
+  // quando o pulmão se enche mais. As unidades perdidas saem como na SDRA (TLC, VR e CL × 0,88); a caixa descansa
+  // mais baixo (V0cw 2,4: diafragma elevado do lado colapsado); CCadd 0,85 fecha as bases em repouso.
+  // Conferido no Node (idade 30): CRF 1,84 < CC 2,34, 35 % das bases fechadas, shunt 14 %, SaO2 94 %;
+  // PEEP 5 → 9 % fechadas e SaO2 96 %; PEEP 10 → nenhuma; apneia em ar, SaO2 90 % em 28 s (decúbito: 32 s).
+  atelectasia: {name: 'Atelectasia · deitado', sub: 'BASES FECHADAS EM REPOUSO', TLC: 5.1, RV: 1.05, CL: 0.176, Ccw: 0.2, V0cw: 2.4, R: 2.0, VT: 0.45, RR: 16, CCadd: 0.85, VO2: 250, VCO2: 200,
+    note: 'Bases já sem ar e outras fechando em repouso: a CRF fica abaixo da capacidade de fechamento, com shunt. PEEP reabre o que fecha; o colapsado fica.'},
   dpoc: {name: 'DPOC · enfisema', sub: 'PERDA DE RETRAÇÃO', TLC: 7.6, RV: 3.0, CL: 0.4, Ccw: 0.2, V0cw: 3.4, R: 12, VT: 0.45, RR: 15, CCadd: 0.2, VO2: 260, VCO2: 210,
     note: 'Pulmão complacente demais e vias aéreas estreitas: tau longo, expiração incompleta, CRF dinâmica acima da estática.'},
   sdra: {name: 'SDRA', sub: '"BABY LUNG"', TLC: 3.5, RV: 1.0, CL: 0.05, Ccw: 0.2, V0cw: 2.6, R: 4.0, VT: 0.4, RR: 24, CCadd: 0.6, VO2: 300, VCO2: 240,

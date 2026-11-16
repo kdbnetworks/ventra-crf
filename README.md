@@ -16,7 +16,9 @@ Um único modelo move tudo: o tórax 3D, os gráficos e os números saem da mesm
 
 - **Mola dupla**: PL é a retração do pulmão, Pcw a da caixa torácica. A CRF é o volume em que Prs = PEEP (bissecção).
 - **Cenários** (só mudam parâmetros — a CRF, o VT real, τ e a auto-PEEP emergem): normal em pé, decúbito, obesidade,
-  gestante, anestesia, DPOC, SDRA.
+  gestante, anestesia, atelectasia, DPOC, SDRA. A atelectasia (deitado) junta unidades já sem ar com bases que fecham
+  em repouso: a CRF fica abaixo da capacidade de fechamento e aparece shunt; PEEP reabre o que fecha, não o que já
+  colapsou. As proporções vêm de uma TC de tórax, sem nenhum dado de paciente.
 - **Controles**: capacidade vital (manobra até a CPT e o VR), apneia (termina sozinha a SaO₂ < 85 %), pré-O₂ 100 %,
   surfactante (liga/desliga a instabilidade de Laplace no ácino), PEEP 0–15 cmH₂O, idade 20–80 (move a capacidade de
   fechamento).
@@ -27,8 +29,8 @@ Um único modelo move tudo: o tórax 3D, os gráficos e os números saem da mesm
 - **Exibição**: rótulos com guias, vidro, corte coronal, costelas, órbita.
 - **Tour automático** de 103 s com cursor; qualquer clique assume o controle, e 25 s parados o devolvem ao tour.
 
-Teclas: 1–6 vistas · N normal · D DPOC · V cap. vital · A apneia · O pré-O₂ · S surfactante · R rótulos · G vidro ·
-C corte · K costelas · B órbita.
+Teclas: 1–6 vistas · N normal · T atelectasia · D DPOC · V cap. vital · A apneia · O pré-O₂ · S surfactante ·
+R rótulos · G vidro · C corte · K costelas · B órbita.
 A qualidade se ajusta sozinha pelo custo medido de cada quadro. `?q=0`, `?q=1` ou `?q=2` na URL fixa um nível
 (0 é o mais alto) e desliga o ajuste.
 

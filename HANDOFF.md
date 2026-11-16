@@ -39,7 +39,8 @@ O skill (`SKILL.md` do teardown) está em `~/.claude/skills/teardown` se instala
 ## 3. Decisões de modelo (não refazer sem motivo)
 
 - Curvas: `PL = (V−RV)/CL + 25·u¹⁰`, `Pcw = (V−V0cw)/Ccw − 15·(1−u)¹⁰`, `u = (V−RV)/(TLC−RV)`. Dão Prs(TLC) ≈ +60 e Prs(RV) ≈ −26 cmH₂O no normal.
-- Parâmetros por cenário em `SCEN` (TLC, RV, CL, Ccw, V0cw, R, VT, RR, CCadd, VO2, VCO2). CRF resultante: normal 2,38 · decúbito 2,08 · obeso 1,99 · gestante 1,89 · anestesia 1,93 · DPOC 3,68 (τ 1,6 s, auto-PEEP ~0,5) · SDRA 1,42. Validado em Node (`node` com import direto do `lung.js`).
+- Parâmetros por cenário em `SCEN` (TLC, RV, CL, Ccw, V0cw, R, VT, RR, CCadd, VO2, VCO2). CRF resultante: normal 2,38 · decúbito 2,08 · obeso 1,99 · gestante 1,89 · anestesia 1,93 · atelectasia 1,84 · DPOC 3,68 (τ 1,6 s, auto-PEEP ~0,5) · SDRA 1,42. Validado em Node (`node` com import direto do `lung.js`).
+- Atelectasia (2026-11-16): parte do decúbito; 12 % das unidades fora como na SDRA (TLC, RV e CL × 0,88), caixa mais baixa (V0cw 2,4) e CCadd 0,85. Com idade 30: CC 2,34 > CRF 1,84, 35 % das bases fechadas, shunt 14 %, SaO₂ 94 %; PEEP 5 deixa 9 % fechadas (SaO₂ 96 %), PEEP 10 nenhuma; apneia em ar chega a SaO₂ 90 % em 28 s (decúbito: 32 s). As proporções vêm de uma TC de tórax medida no tcviewer (~12 % do pulmão sem ar, perda concentrada nas regiões posteriores, parte reabrindo com mais volume); nenhum dado de paciente entra aqui. O que o modelo de um compartimento não mostra: o lado e a região do colapso (o `body.js` acinzenta as bases por altura, nos dois pulmões) e a evolução no tempo. Isso pede dois compartimentos (§6).
 - Apneia em ar: SaO₂ 90 % em ~40 s; pré-oxigenado: ~8 min. PACO₂ sobe ~3,5 mmHg/min. Ambos dependem dos reservatórios de O₂/CO₂ — não remover.
 - Pmus inspiratório é seno em 40 % do ciclo; expiração passiva. Manobra CV usa `Prs(TLC−0,03)+3` e `Prs(RV+0,03)−3` como alvos, então atinge CPT e VR de verdade.
 - Pressão pleural: `Ppl = Palv − PL` (= Pcw − Pmus), exposta por `read()` e usada pelo rótulo PLEURA e pela mola dupla. `−PL` só vale sem PEEP e sem fluxo; com PEEP 10 na SDRA errava por 10 cmH₂O (corrigido em 2026-11-09).
@@ -80,6 +81,10 @@ Pendências conhecidas, por prioridade:
 7. Anatomia esquemática: costelas regulares demais ("slinky"), pulmões um pouco cilíndricos, diafragma como cúpula única e larga. Ou refinar o procedural, ou trocar por malhas reais (§6).
 8. Sem film/score: não há `*-film`, `timeline.json` nem `score.py`. Se quiser vídeo, seguir o padrão do `cessna-film`.
 9. Mobile: só o aviso "Gire o celular na horizontal…"; não testado.
+
+10. **Atelectasia fora do tour** (2026-11-16): o cenário está nos botões (fileira de cenários com `pad` 18 em `btnRow`, para os oito caberem em três linhas) e na tecla T, mas o `SCRIPT` de 103 s não passa por ele. Para entrar, retemporizar o trecho de cenários.
+
+Conferido no Node em 2026-11-16, depois de acrescentar a atelectasia: as CRF dos sete cenários anteriores não mudaram (normal 2,38 … SDRA 1,42). Revisado por frames (SwiftShader, tier 1): botões em três linhas, «ATELECTASIA · DEITADO · V 1,84 L», CC acima da CRF, bases acinzentadas, SaO₂ 93,8 %, fechadas 31 %; com PEEP 10, «BASES ABERTAS · CRF 2,63 > CC 2,34» e SaO₂ 96,8 %.
 
 Conferido no Node em 2026-11-09, antes e depois das correções, sem mudança: CRF dos sete cenários; apneia em ar, SaO₂ 90 % aos 38 s; pré-oxigenado, 8,2 min; PACO₂ +3,4 a 3,5 mmHg/min depois do salto dos primeiros ~10 s. SaO₂ de equilíbrio igual, exceto na SDRA (91,2 → 91,9 %).
 
